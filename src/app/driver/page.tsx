@@ -51,6 +51,8 @@ export default function DriverPage() {
   const [isLocating, setIsLocating] = useState<boolean>(false);
   const [watchId, setWatchId] = useState<number | null>(null);
   const [wakeLockActive, setWakeLockActive] = useState<boolean>(false);
+  const [backgroundAudioActive, setBackgroundAudioActive] = useState<boolean>(false);
+  const [enableBackgroundKeepAlive, setEnableBackgroundKeepAlive] = useState<boolean>(true);
 
   // Current Geolocation reading
   const [currentPosition, setCurrentPosition] = useState<GeolocationPosition | null>(null);
@@ -76,10 +78,34 @@ export default function DriverPage() {
   const [stats, setStats] = useState({ sent: 0, successful: 0, failed: 0 });
   const [pingLogs, setPingLogs] = useState<PingLogItem[]>([]);
 
-  // Refs for tracking throttle
+  // Refs for tracking throttle & background handlers
   const lastPingTimeRef = useRef<number>(0);
   const lastPingCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
   const wakeLockRef = useRef<any>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioOscillatorRef = useRef<OscillatorNode | null>(null);
+  const workerRef = useRef<Worker | null>(null);
+  const isTrackingRef = useRef<boolean>(false);
+
+  // Keep isTrackingRef synchronized
+  useEffect(() => {
+    isTrackingRef.current = isTracking;
+  }, [isTracking]);
+
+  // Visibility change auto-reacquire WakeLock and resume location query
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isTrackingRef.current) {
+        requestWakeLock();
+        triggerLocationPrompt();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   // Detect insecure context on mobile
   useEffect(() => {
@@ -334,6 +360,113 @@ export default function DriverPage() {
     );
   };
 
+  // Start background audio keep-alive (keeps iOS/Android JavaScript thread active when screen is locked)
+  const startBackgroundAudio = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+
+      const ctx = new AudioCtx();
+      // Generate ultra-low volume inaudible tone to maintain active audio pipeline
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, ctx.currentTime);
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime); // Inaudible (0.01% gain)
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+
+      audioContextRef.current = ctx;
+      audioOscillatorRef.current = osc;
+      setBackgroundAudioActive(true);
+
+      // Register Media Session so mobile OS kernel marks this tab as an active background service
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: 'LogisticX Driver GPS Active',
+          artist: 'Live Telematics Stream',
+          album: 'Boundary Detection Engine',
+        });
+        navigator.mediaSession.playbackState = 'playing';
+      }
+    } catch (e) {
+      console.warn('Background audio keep-alive could not be initialized:', e);
+    }
+  };
+
+  const stopBackgroundAudio = () => {
+    try {
+      if (audioOscillatorRef.current) {
+        audioOscillatorRef.current.stop();
+        audioOscillatorRef.current.disconnect();
+        audioOscillatorRef.current = null;
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'none';
+      }
+      setBackgroundAudioActive(false);
+    } catch (e) {
+      console.warn('Error stopping background audio:', e);
+    }
+  };
+
+  // Dedicated Web Worker timer for reliable heartbeat tick even when UI is inactive
+  const startBackgroundWorker = (intervalSec: number) => {
+    try {
+      if (workerRef.current) {
+        workerRef.current.terminate();
+      }
+      const blob = new Blob([
+        `let intervalId = null;
+        self.onmessage = function(e) {
+          if (e.data.action === 'start') {
+            if (intervalId) clearInterval(intervalId);
+            intervalId = setInterval(() => {
+              self.postMessage({ type: 'TICK' });
+            }, (e.data.interval || 10) * 1000);
+          } else if (e.data.action === 'stop') {
+            if (intervalId) clearInterval(intervalId);
+            intervalId = null;
+          }
+        };`
+      ], { type: 'application/javascript' });
+
+      const worker = new Worker(URL.createObjectURL(blob));
+      worker.onmessage = (e) => {
+        if (e.data.type === 'TICK' && isTrackingRef.current) {
+          // Force location query in background
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => sendLocationPing(pos),
+              (err) => console.warn('Worker background GPS tick warning:', err),
+              { enableHighAccuracy: highAccuracy, timeout: 15000, maximumAge: 5000 }
+            );
+          }
+        }
+      };
+
+      worker.postMessage({ action: 'start', interval: intervalSec });
+      workerRef.current = worker;
+    } catch (e) {
+      console.warn('Web Worker initialization error:', e);
+    }
+  };
+
+  const stopBackgroundWorker = () => {
+    if (workerRef.current) {
+      workerRef.current.postMessage({ action: 'stop' });
+      workerRef.current.terminate();
+      workerRef.current = null;
+    }
+  };
+
   // Start Tracking Handler
   const startTracking = () => {
     if (!navigator.geolocation) {
@@ -344,6 +477,11 @@ export default function DriverPage() {
     setGpsError(null);
     setIsTracking(true);
     requestWakeLock();
+
+    if (enableBackgroundKeepAlive) {
+      startBackgroundAudio();
+    }
+    startBackgroundWorker(pingIntervalSeconds);
 
     // 1. First trigger an immediate prompt
     triggerLocationPrompt();
@@ -379,6 +517,8 @@ export default function DriverPage() {
       setWatchId(null);
     }
     releaseWakeLock();
+    stopBackgroundAudio();
+    stopBackgroundWorker();
     setIsTracking(false);
   };
 
@@ -453,11 +593,17 @@ export default function DriverPage() {
         </div>
 
         {/* Battery & WakeLock Status */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {wakeLockActive && (
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-medium" title="Screen will remain awake while tracking">
               <Sun className="w-3.5 h-3.5" />
               <span>WakeLock ON</span>
+            </div>
+          )}
+          {backgroundAudioActive && (
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-medium" title="Background Audio Keep-Alive active to allow screen-off tracking">
+              <Radio className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+              <span>Screen-Off Guard ON</span>
             </div>
           )}
           {batteryLevel !== null && (
@@ -685,6 +831,26 @@ export default function DriverPage() {
               className="w-full accent-blue-500"
             />
             <span className="text-[11px] text-slate-500">Only send ping when vehicle moves at least this far</span>
+          </div>
+        </div>
+
+        <div className="pt-3 border-t border-slate-800/60">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <label className="text-slate-300 font-medium flex items-center gap-1.5 cursor-pointer text-xs" onClick={() => setEnableBackgroundKeepAlive(!enableBackgroundKeepAlive)}>
+                <Radio className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Screen-Off Background Guard (Audio Keep-Alive)</span>
+              </label>
+              <p className="text-[11px] text-slate-500">
+                Prevents Android & iOS from pausing GPS pings when phone is locked or browser is minimized.
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              checked={enableBackgroundKeepAlive}
+              onChange={(e) => setEnableBackgroundKeepAlive(e.target.checked)}
+              className="w-4 h-4 rounded accent-indigo-500 cursor-pointer"
+            />
           </div>
         </div>
       </div>
