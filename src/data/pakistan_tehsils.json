@@ -1,0 +1,425 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1,
+        "name": "Lahore City",
+        "district": "Lahore",
+        "province": "Punjab",
+        "code": "PK.PB.LH.CT"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [74.2600, 31.5400],
+            [74.3300, 31.5400],
+            [74.3450, 31.5850],
+            [74.3100, 31.6100],
+            [74.2700, 31.5900],
+            [74.2600, 31.5400]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 2,
+        "name": "Lahore Cantt",
+        "district": "Lahore",
+        "province": "Punjab",
+        "code": "PK.PB.LH.CN"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [74.3500, 31.4800],
+            [74.4900, 31.4800],
+            [74.5200, 31.5600],
+            [74.4500, 31.6000],
+            [74.3600, 31.5700],
+            [74.3500, 31.4800]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 3,
+        "name": "Model Town",
+        "district": "Lahore",
+        "province": "Punjab",
+        "code": "PK.PB.LH.MT"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [74.2700, 31.4300],
+            [74.3600, 31.4300],
+            [74.3600, 31.5300],
+            [74.2700, 31.5300],
+            [74.2700, 31.4300]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 4,
+        "name": "Raiwind",
+        "district": "Lahore",
+        "province": "Punjab",
+        "code": "PK.PB.LH.RW"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [74.1500, 31.2200],
+            [74.3300, 31.2200],
+            [74.3300, 31.4250],
+            [74.1800, 31.4250],
+            [74.1500, 31.2200]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 5,
+        "name": "Shalimar",
+        "district": "Lahore",
+        "province": "Punjab",
+        "code": "PK.PB.LH.SH"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [74.3500, 31.5700],
+            [74.4500, 31.5700],
+            [74.4600, 31.6500],
+            [74.3500, 31.6500],
+            [74.3500, 31.5700]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 6,
+        "name": "Kasur",
+        "district": "Kasur",
+        "province": "Punjab",
+        "code": "PK.PB.KS.KS"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [74.3300, 31.0000],
+            [74.5500, 31.0500],
+            [74.5500, 31.2200],
+            [74.3300, 31.2200],
+            [74.3300, 31.0000]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 7,
+        "name": "Pattoki",
+        "district": "Kasur",
+        "province": "Punjab",
+        "code": "PK.PB.KS.PT"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [73.7800, 31.0000],
+            [74.1500, 31.0000],
+            [74.1500, 31.2200],
+            [73.7800, 31.2200],
+            [73.7800, 31.0000]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 8,
+        "name": "Chunian",
+        "district": "Kasur",
+        "province": "Punjab",
+        "code": "PK.PB.KS.CH"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [73.9000, 30.8000],
+            [74.2500, 30.8000],
+            [74.2500, 31.0000],
+            [73.9000, 31.0000],
+            [73.9000, 30.8000]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 9,
+        "name": "Kot Radha Kishan",
+        "district": "Kasur",
+        "province": "Punjab",
+        "code": "PK.PB.KS.KR"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [74.1500, 31.1000],
+            [74.3300, 31.1000],
+            [74.3300, 31.2200],
+            [74.1500, 31.2200],
+            [74.1500, 31.1000]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 10,
+        "name": "Sheikhupura",
+        "district": "Sheikhupura",
+        "province": "Punjab",
+        "code": "PK.PB.SK.SK"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [73.8500, 31.6000],
+            [74.1500, 31.6000],
+            [74.1500, 31.8500],
+            [73.8500, 31.8500],
+            [73.8500, 31.6000]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 11,
+        "name": "Ferozewala",
+        "district": "Sheikhupura",
+        "province": "Punjab",
+        "code": "PK.PB.SK.FR"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [74.1500, 31.5800],
+            [74.3300, 31.5800],
+            [74.3300, 31.8500],
+            [74.1500, 31.8500],
+            [74.1500, 31.5800]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 12,
+        "name": "Islamabad",
+        "district": "Islamabad",
+        "province": "Islamabad Capital Territory",
+        "code": "PK.IS.IS.IS"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [72.8500, 33.6000],
+            [73.2500, 33.6000],
+            [73.2500, 33.8500],
+            [72.8500, 33.8500],
+            [72.8500, 33.6000]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 13,
+        "name": "Rawalpindi",
+        "district": "Rawalpindi",
+        "province": "Punjab",
+        "code": "PK.PB.RP.RP"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [72.9000, 33.4500],
+            [73.2500, 33.4500],
+            [73.2500, 33.6000],
+            [72.9000, 33.6000],
+            [72.9000, 33.4500]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 14,
+        "name": "Gujar Khan",
+        "district": "Rawalpindi",
+        "province": "Punjab",
+        "code": "PK.PB.RP.GK"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [73.1500, 33.1500],
+            [73.5000, 33.1500],
+            [73.5000, 33.4500],
+            [73.1500, 33.4500],
+            [73.1500, 33.1500]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 15,
+        "name": "Murree",
+        "district": "Murree",
+        "province": "Punjab",
+        "code": "PK.PB.MR.MR"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [73.3000, 33.8500],
+            [73.5500, 33.8500],
+            [73.5500, 34.0500],
+            [73.3000, 34.0500],
+            [73.3000, 33.8500]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 16,
+        "name": "Karachi South",
+        "district": "Karachi South",
+        "province": "Sindh",
+        "code": "PK.SD.KH.ST"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [66.9500, 24.7800],
+            [67.0800, 24.7800],
+            [67.0800, 24.8700],
+            [66.9500, 24.8700],
+            [66.9500, 24.7800]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 17,
+        "name": "Karachi East",
+        "district": "Karachi East",
+        "province": "Sindh",
+        "code": "PK.SD.KH.ES"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [67.0800, 24.8400],
+            [67.2200, 24.8400],
+            [67.2200, 24.9600],
+            [67.0800, 24.9600],
+            [67.0800, 24.8400]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 18,
+        "name": "Peshawar City",
+        "district": "Peshawar",
+        "province": "Khyber Pakhtunkhwa",
+        "code": "PK.KP.PS.CT"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [71.4500, 33.9500],
+            [71.6500, 33.9500],
+            [71.6500, 34.0800],
+            [71.4500, 34.0800],
+            [71.4500, 33.9500]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 19,
+        "name": "Faisalabad City",
+        "district": "Faisalabad",
+        "province": "Punjab",
+        "code": "PK.PB.FB.CT"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [73.0000, 31.3500],
+            [73.2000, 31.3500],
+            [73.2000, 31.5200],
+            [73.0000, 31.5200],
+            [73.0000, 31.3500]
+          ]
+        ]
+      }
+    }
+  ]
+}

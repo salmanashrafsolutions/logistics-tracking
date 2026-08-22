@@ -1,0 +1,16 @@
+{
+  "name": "LogisticX Vehicle Tracking",
+  "short_name": "LX Tracker",
+  "description": "Live GPS vehicle tracking and boundary crossing detection",
+  "start_url": "/driver",
+  "display": "standalone",
+  "background_color": "#0b0f19",
+  "theme_color": "#0b0f19",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
