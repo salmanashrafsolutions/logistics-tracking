@@ -127,10 +127,70 @@ export default function DriverPage() {
     }
   }, []);
 
+  // URL Params auto-selection for WhatsApp 1-Click Dispatch
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const vParam = params.get('v') || params.get('vehicle_id');
+      const dParam = params.get('driver') || params.get('d');
+      const pParam = params.get('plate');
+      
+      if (vParam) {
+        setSelectedVehicleId(vParam);
+        // Ensure vehicle is registered on server
+        fetch('/api/vehicles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: vParam,
+            label: dParam ? `Truck (${dParam})` : `Truck ${vParam}`,
+            driver_name: dParam || undefined,
+            plate_number: pParam || undefined
+          })
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.vehicle) {
+              setVehicles(prev => [data.vehicle, ...prev.filter(v => v.id !== data.vehicle.id)]);
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  }, []);
+
+  // Offline queue auto-flush on internet reconnection
+  const flushOfflineQueue = async () => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = localStorage.getItem('logisticx_offline_pings');
+      if (!stored) return;
+      const queuedPings = JSON.parse(stored);
+      if (!Array.isArray(queuedPings) || queuedPings.length === 0) return;
+
+      for (const payload of queuedPings) {
+        await fetch('/api/tracking/ping', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
+      localStorage.removeItem('logisticx_offline_pings');
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener('online', flushOfflineQueue);
+    return () => window.removeEventListener('online', flushOfflineQueue);
+  }, []);
+
   // Fetch registered vehicles
   useEffect(() => {
     fetchVehicles();
     initBattery();
+    flushOfflineQueue();
   }, []);
 
   const fetchVehicles = async () => {
@@ -613,6 +673,39 @@ export default function DriverPage() {
               <span>{batteryLevel}%</span>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* 1-Click Driver Dispatch Guide (Urdu & English) */}
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/50 via-slate-900/80 to-blue-950/40 border border-emerald-500/40 text-slate-200 text-xs sm:text-sm space-y-3 shadow-lg">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2 font-bold text-emerald-300">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+            <span>1-Click Dispatch Link Active • No App Installation Required</span>
+          </div>
+          <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-medium">
+            Zero-Login Web Tracking
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs leading-relaxed">
+          <div className="p-3 rounded-xl bg-black/40 border border-slate-800 space-y-1.5">
+            <p className="font-bold text-emerald-400">🇵🇰 ڈرائیور حضرات کے لیے آسان ہدایات:</p>
+            <ol className="list-decimal list-inside space-y-1 text-slate-300">
+              <li>نیچے سبز بٹن <strong>&quot;START TRACKING&quot;</strong> پر کلک کریں۔</li>
+              <li>فون کو گاڑی کے ڈیش بورڈ، ہولڈر یا چارجر میں لگا دیں۔</li>
+              <li>اسکرین خود آن رہے گی اور آپ کی گاڑی کا سفر لائیو ٹریک ہوتا رہے گا۔</li>
+            </ol>
+          </div>
+
+          <div className="p-3 rounded-xl bg-black/40 border border-slate-800 space-y-1.5">
+            <p className="font-bold text-blue-400">🇬🇧 Instructions for Driver:</p>
+            <ol className="list-decimal list-inside space-y-1 text-slate-300">
+              <li>Tap the green <strong>&quot;START TRACKING&quot;</strong> button below.</li>
+              <li>Mount your phone or leave it plugged in while driving.</li>
+              <li>Screen will stay awake with WakeLock. Do not close this browser tab.</li>
+            </ol>
+          </div>
         </div>
       </div>
 

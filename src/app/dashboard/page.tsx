@@ -13,7 +13,13 @@ import {
   ShieldAlert, 
   Truck,
   CheckCircle2,
-  Calendar
+  Calendar,
+  Share2,
+  Send,
+  Copy,
+  Check,
+  Smartphone,
+  X
 } from 'lucide-react';
 import { Vehicle, RawPing, BoundaryCrossing } from '@/lib/types';
 import RouteSimulator from '@/components/RouteSimulator';
@@ -38,6 +44,13 @@ export default function DashboardPage() {
   const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
   const [showSimulator, setShowSimulator] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'crossings' | 'pings'>('crossings');
+
+  // WhatsApp Dispatcher Modal State
+  const [showDispatchModal, setShowDispatchModal] = useState<boolean>(false);
+  const [dispatchDriverName, setDispatchDriverName] = useState<string>('');
+  const [dispatchPlate, setDispatchPlate] = useState<string>('');
+  const [dispatchPhone, setDispatchPhone] = useState<string>('');
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
   // Load cached vehicle pings and crossings from localStorage
   useEffect(() => {
@@ -206,6 +219,20 @@ export default function DashboardPage() {
               ))}
             </select>
           </div>
+
+          {/* WhatsApp 1-Click Dispatch Link Generator */}
+          <button
+            type="button"
+            onClick={() => {
+              setDispatchPlate(currentVehicle?.plate_number || selectedVehicleId);
+              setDispatchDriverName(currentVehicle?.driver_name || '');
+              setShowDispatchModal(true);
+            }}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20 transition-all"
+          >
+            <Smartphone className="w-4 h-4" />
+            <span>WhatsApp Driver Link</span>
+          </button>
 
           {/* Simulator Toggle */}
           <button
@@ -451,6 +478,106 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* WhatsApp Driver Dispatch Modal */}
+      {showDispatchModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2 text-white font-bold">
+                <Smartphone className="w-5 h-5 text-emerald-400" />
+                <span>Dispatch Driver WhatsApp Link</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDispatchModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Send this 1-click link to temporary truck drivers. When they tap it, tracking starts instantly in their mobile browser without any app download or login.
+            </p>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-400 mb-1 font-medium">Driver Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Imran Khan"
+                  value={dispatchDriverName}
+                  onChange={(e) => setDispatchDriverName(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1 font-medium">Truck / Plate Number</label>
+                <input
+                  type="text"
+                  placeholder="e.g. LEA-2024-88"
+                  value={dispatchPlate}
+                  onChange={(e) => setDispatchPlate(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1 font-medium">Driver WhatsApp Phone (with Country Code)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 923001234567"
+                  value={dispatchPhone}
+                  onChange={(e) => setDispatchPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              {/* Generated Link Preview */}
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1 font-mono text-[11px] break-all">
+                <span className="text-slate-500 font-sans text-[10px] uppercase font-bold tracking-wider">Generated Dispatch URL:</span>
+                <p className="text-emerald-400">
+                  {typeof window !== 'undefined' ? `${window.location.origin}/driver?v=${encodeURIComponent(dispatchPlate || selectedVehicleId)}&driver=${encodeURIComponent(dispatchDriverName || 'Driver')}&plate=${encodeURIComponent(dispatchPlate || '')}` : ''}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const url = `${window.location.origin}/driver?v=${encodeURIComponent(dispatchPlate || selectedVehicleId)}&driver=${encodeURIComponent(dispatchDriverName || 'Driver')}&plate=${encodeURIComponent(dispatchPlate || '')}`;
+                  const msg = `Salam ${dispatchDriverName || 'Driver'},\nPlease click this link to start your live GPS tracking for Truck ${dispatchPlate || selectedVehicleId}:\n${url}`;
+                  const waUrl = dispatchPhone 
+                    ? `https://api.whatsapp.com/send?phone=${dispatchPhone}&text=${encodeURIComponent(msg)}`
+                    : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+                  window.open(waUrl, '_blank');
+                }}
+                className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 transition-all"
+              >
+                <Send className="w-4 h-4" />
+                <span>Send via WhatsApp</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const url = `${window.location.origin}/driver?v=${encodeURIComponent(dispatchPlate || selectedVehicleId)}&driver=${encodeURIComponent(dispatchDriverName || 'Driver')}&plate=${encodeURIComponent(dispatchPlate || '')}`;
+                  navigator.clipboard.writeText(url);
+                  setCopiedLink(true);
+                  setTimeout(() => setCopiedLink(false), 2500);
+                }}
+                className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-all"
+              >
+                {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                <span>{copiedLink ? 'Copied!' : 'Copy Link'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
