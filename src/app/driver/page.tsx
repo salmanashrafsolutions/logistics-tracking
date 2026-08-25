@@ -20,7 +20,9 @@ import {
   ArrowRight,
   ShieldAlert,
   Globe,
-  MapPinOff
+  MapPinOff,
+  Layers,
+  Tv
 } from 'lucide-react';
 import { Vehicle, PingResponse } from '@/lib/types';
 
@@ -389,6 +391,25 @@ export default function DriverPage() {
         setCurrentDistrict(data.current_district);
       }
 
+      // Update Lock-Screen Notification Player in real-time
+      if ('mediaSession' in navigator) {
+        const speedKmh = speed !== null && speed !== undefined ? Math.round(speed * 3.6) : 0;
+        const currentT = data.current_tehsil || currentTehsil || 'Resolving...';
+        const currentD = data.current_district || currentDistrict || '';
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: `🚚 ${selectedVehicleId} • ${speedKmh} km/h`,
+          artist: `📍 Tehsil: ${currentT} ${currentD ? '(' + currentD + ')' : ''}`,
+          album: `🟢 Live GPS • Pings: ${stats.successful + 1}`,
+        });
+        navigator.mediaSession.playbackState = 'playing';
+      }
+
+      // Update Floating PiP Mini-Widget Frame
+      drawPipFrame(
+        speed !== null && speed !== undefined ? Math.round(speed * 3.6) : 0,
+        data.current_tehsil || currentTehsil
+      );
+
       if (data.crossing_detected && data.crossing) {
         setLastCrossingAlert({
           from: data.crossing.from_tehsil,
@@ -477,6 +498,90 @@ export default function DriverPage() {
   // HUD Dimmer Mode (AMOLED Screen Blackout to track without battery drain)
   const [isHudMode, setIsHudMode] = useState<boolean>(false);
   const silentAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Picture-in-Picture (Floating Mini-Widget) State & Engine
+  const pipVideoRef = useRef<HTMLVideoElement | null>(null);
+  const pipCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isPipActive, setIsPipActive] = useState<boolean>(false);
+  const [pipSupported, setPipSupported] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (typeof document !== 'undefined' && (document as any).pictureInPictureEnabled) {
+      setPipSupported(true);
+    }
+  }, []);
+
+  const drawPipFrame = (speedKmh: number, tehsil: string | null) => {
+    const canvas = pipCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Dark sleek background
+    ctx.fillStyle = '#090d16';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Accent line on top
+    ctx.fillStyle = '#10b981';
+    ctx.fillRect(0, 0, canvas.width, 5);
+
+    // Vehicle ID Header
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 22px system-ui, sans-serif';
+    ctx.fillText(`🚚 ${selectedVehicleId}`, 18, 38);
+
+    // Big Speed Display
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 50px monospace';
+    ctx.fillText(`${speedKmh}`, 18, 98);
+    ctx.font = 'normal 18px system-ui, sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText(`km/h`, 18 + ctx.measureText(`${speedKmh}`).width + 8, 98);
+
+    // Tehsil Name
+    ctx.fillStyle = '#34d399';
+    ctx.font = 'bold 22px system-ui, sans-serif';
+    ctx.fillText(`📍 ${tehsil || 'Locating Tehsil...'}`, 18, 145);
+
+    // Status Footer
+    ctx.fillStyle = '#64748b';
+    ctx.font = '16px monospace';
+    ctx.fillText(`🟢 GPS Live • ${new Date().toLocaleTimeString()}`, 18, 185);
+  };
+
+  const togglePictureInPicture = async () => {
+    try {
+      const video = pipVideoRef.current;
+      const canvas = pipCanvasRef.current;
+      if (!video || !canvas) return;
+
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+        setIsPipActive(false);
+        return;
+      }
+
+      drawPipFrame(
+        currentPosition?.coords.speed ? Math.round(currentPosition.coords.speed * 3.6) : 0,
+        currentTehsil
+      );
+
+      const stream = (canvas as any).captureStream ? (canvas as any).captureStream(10) : (canvas as any).mozCaptureStream?.(10);
+      if (stream) {
+        video.srcObject = stream;
+        await video.play();
+        if ((document as any).pictureInPictureEnabled) {
+          await video.requestPictureInPicture();
+          setIsPipActive(true);
+          video.addEventListener('leavepictureinpicture', () => {
+            setIsPipActive(false);
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('PiP mini-window could not be launched:', err);
+    }
+  };
 
   // Start background audio keep-alive (HTML5 Audio Loop + MediaSession)
   const startBackgroundAudio = () => {
@@ -884,6 +989,17 @@ export default function DriverPage() {
               <Sun className="w-4 h-4 text-amber-400" />
               <span>AMOLED Blackout HUD</span>
             </button>
+
+            {pipSupported && (
+              <button
+                type="button"
+                onClick={togglePictureInPicture}
+                className="w-full sm:w-auto py-4 px-5 rounded-2xl bg-slate-900 border border-cyan-500/40 hover:border-cyan-400 text-cyan-300 text-sm font-semibold hover:text-white transition-all flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/10"
+              >
+                <Tv className="w-4 h-4 text-cyan-400" />
+                <span>{isPipActive ? 'Close Floating Widget' : '📺 Floating PiP Widget'}</span>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -1133,6 +1249,21 @@ export default function DriverPage() {
           )}
         </div>
       </div>
+
+      {/* Hidden Canvas & Video for Floating Picture-in-Picture (PiP) mini-widget */}
+      <canvas 
+        ref={pipCanvasRef} 
+        width={320} 
+        height={210} 
+        className="hidden" 
+      />
+      <video 
+        ref={pipVideoRef} 
+        muted 
+        playsInline 
+        autoPlay 
+        className="hidden" 
+      />
     </div>
   );
 }
