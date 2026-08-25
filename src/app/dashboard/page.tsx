@@ -39,13 +39,41 @@ export default function DashboardPage() {
   const [showSimulator, setShowSimulator] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'crossings' | 'pings'>('crossings');
 
+  // Load cached vehicle pings and crossings from localStorage
+  useEffect(() => {
+    if (!selectedVehicleId || typeof window === 'undefined') return;
+    try {
+      const cachedPings = localStorage.getItem(`logisticx_pings_${selectedVehicleId}`);
+      if (cachedPings) {
+        const parsed = JSON.parse(cachedPings);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setPings(parsed);
+        }
+      }
+      const cachedCrossings = localStorage.getItem(`logisticx_crossings_${selectedVehicleId}`);
+      if (cachedCrossings) {
+        const parsed = JSON.parse(cachedCrossings);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setCrossings(parsed);
+        }
+      }
+    } catch {
+      // ignore localStorage parse errors
+    }
+  }, [selectedVehicleId]);
+
   // Load vehicles
   const fetchVehicles = useCallback(async () => {
     try {
       const res = await fetch('/api/vehicles');
       const data = await res.json();
       if (data.vehicles && data.vehicles.length > 0) {
-        setVehicles(data.vehicles);
+        setVehicles((prev) => {
+          const map = new Map<string, Vehicle>();
+          prev.forEach((v) => map.set(v.id, v));
+          data.vehicles.forEach((v: Vehicle) => map.set(v.id, v));
+          return Array.from(map.values());
+        });
         if (!selectedVehicleId) {
           setSelectedVehicleId(data.vehicles[0].id);
         }
@@ -55,7 +83,7 @@ export default function DashboardPage() {
     }
   }, [selectedVehicleId]);
 
-  // Load vehicle pings and crossings
+  // Load vehicle pings and crossings with resilient deduplication & merge
   const fetchVehicleData = useCallback(async (vehicleId: string) => {
     if (!vehicleId) return;
     try {
@@ -67,16 +95,50 @@ export default function DashboardPage() {
       const pingsData = await pingsRes.json();
       const crossingsData = await crossingsRes.json();
 
-      if (pingsData.pings) {
-        // Sort pings chronologically ascending for polyline rendering
-        const sortedPings = [...pingsData.pings].sort(
-          (a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
-        );
-        setPings(sortedPings);
+      if (pingsData.pings && Array.isArray(pingsData.pings) && pingsData.pings.length > 0) {
+        setPings((prevPings) => {
+          const map = new Map<string, RawPing>();
+          prevPings.forEach((p) => {
+            const key = p.id ? `id_${p.id}` : `${p.lat.toFixed(6)}_${p.lng.toFixed(6)}_${p.recorded_at}`;
+            map.set(key, p);
+          });
+          pingsData.pings.forEach((p: RawPing) => {
+            const key = p.id ? `id_${p.id}` : `${p.lat.toFixed(6)}_${p.lng.toFixed(6)}_${p.recorded_at}`;
+            map.set(key, p);
+          });
+          const merged = Array.from(map.values()).sort(
+            (a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
+          );
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem(`logisticx_pings_${vehicleId}`, JSON.stringify(merged.slice(-200)));
+            } catch {}
+          }
+          return merged;
+        });
       }
 
-      if (crossingsData.crossings) {
-        setCrossings(crossingsData.crossings);
+      if (crossingsData.crossings && Array.isArray(crossingsData.crossings) && crossingsData.crossings.length > 0) {
+        setCrossings((prevCrossings) => {
+          const map = new Map<string, BoundaryCrossing>();
+          prevCrossings.forEach((c) => {
+            const key = c.id ? `id_${c.id}` : `${c.vehicle_id}_${c.from_tehsil}_${c.to_tehsil}_${c.crossed_at}`;
+            map.set(key, c);
+          });
+          crossingsData.crossings.forEach((c: BoundaryCrossing) => {
+            const key = c.id ? `id_${c.id}` : `${c.vehicle_id}_${c.from_tehsil}_${c.to_tehsil}_${c.crossed_at}`;
+            map.set(key, c);
+          });
+          const merged = Array.from(map.values()).sort(
+            (a, b) => new Date(b.crossed_at).getTime() - new Date(a.crossed_at).getTime()
+          );
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem(`logisticx_crossings_${vehicleId}`, JSON.stringify(merged.slice(-100)));
+            } catch {}
+          }
+          return merged;
+        });
       }
     } catch (err) {
       console.error('Error loading vehicle telemetry:', err);
@@ -284,6 +346,27 @@ export default function DashboardPage() {
             >
               Raw Ingest Pings ({pings.length})
             </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {(pings.length > 0 || crossings.length > 0) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setPings([]);
+                  setCrossings([]);
+                  if (typeof window !== 'undefined' && selectedVehicleId) {
+                    try {
+                      localStorage.removeItem(`logisticx_pings_${selectedVehicleId}`);
+                      localStorage.removeItem(`logisticx_crossings_${selectedVehicleId}`);
+                    } catch {}
+                  }
+                }}
+                className="text-xs text-slate-500 hover:text-rose-400 transition-colors px-2 py-1 rounded-lg hover:bg-rose-500/10"
+              >
+                Clear History
+              </button>
+            )}
           </div>
         </div>
 

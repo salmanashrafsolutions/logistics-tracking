@@ -4,7 +4,7 @@ import { Vehicle, RawPing, BoundaryCrossing, TehsilLookupResult } from './types'
 import tehsilsGeoJSON from '../data/pakistan_tehsils.json';
 
 // In-Memory store for offline/demo/testing mode when no PostgreSQL connection is provided
-const memoryStore = {
+const defaultMemoryStore = {
   vehicles: [
     {
       id: 'v-truck-12',
@@ -34,6 +34,13 @@ const memoryStore = {
   rawPings: [] as RawPing[],
   boundaryCrossings: [] as BoundaryCrossing[],
 };
+
+const globalForMemory = globalThis as unknown as {
+  __memoryStore?: typeof defaultMemoryStore;
+};
+
+const memoryStore = globalForMemory.__memoryStore || defaultMemoryStore;
+globalForMemory.__memoryStore = memoryStore;
 
 // PostgreSQL Connection Pool
 let pgPool: Pool | null = null;
