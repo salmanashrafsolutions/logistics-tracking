@@ -92,12 +92,46 @@ export default function DriverPage() {
     isTrackingRef.current = isTracking;
   }, [isTracking]);
 
-  // Visibility change auto-reacquire WakeLock and resume location query
+  // Tab close prevention & Compliance State
+  const [urduWarning, setUrduWarning] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const hiddenStartTimeRef = useRef<number | null>(null);
+
+  // Prevent accidental tab closure while tracking
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isTrackingRef.current) {
+        const message = '⚠️ Closing this page will stop live vehicle tracking. Please keep it open.';
+        e.preventDefault();
+        e.returnValue = message;
+        return message;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  // Visibility change auto-reacquire WakeLock, flush pings, and alert if tab was hidden
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && isTrackingRef.current) {
-        requestWakeLock();
-        triggerLocationPrompt();
+      if (document.hidden) {
+        hiddenStartTimeRef.current = Date.now();
+      } else {
+        if (hiddenStartTimeRef.current && isTrackingRef.current) {
+          const hiddenSec = Math.round((Date.now() - hiddenStartTimeRef.current) / 1000);
+          if (hiddenSec >= 15) {
+            setUrduWarning(
+              `⚠️ اسکرین ${hiddenSec} سیکنڈ کے لیے بند/چھپ گئی تھی! برائے مہربانی اس پیج کو کھول کر رکھیں تاکہ جی پی ایس نہ رکے۔`
+            );
+          }
+        }
+        hiddenStartTimeRef.current = null;
+        if (isTrackingRef.current) {
+          requestWakeLock();
+          triggerLocationPrompt();
+          flushOfflineQueue();
+        }
       }
     };
 
@@ -106,6 +140,25 @@ export default function DriverPage() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
+
+  // Toggle Fullscreen Focus Mode
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        if (document.documentElement.requestFullscreen) {
+          await document.documentElement.requestFullscreen();
+          setIsFullscreen(true);
+        }
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+          setIsFullscreen(false);
+        }
+      }
+    } catch (err) {
+      console.warn('Fullscreen toggle unavailable:', err);
+    }
+  };
 
   // Detect insecure context on mobile
   useEffect(() => {
@@ -168,13 +221,14 @@ export default function DriverPage() {
       const queuedPings = JSON.parse(stored);
       if (!Array.isArray(queuedPings) || queuedPings.length === 0) return;
 
-      for (const payload of queuedPings) {
-        await fetch('/api/tracking/ping', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-      }
+      await fetch('/api/tracking/ping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vehicle_id: selectedVehicleId,
+          pings: queuedPings
+        })
+      });
       localStorage.removeItem('logisticx_offline_pings');
     } catch {
       // ignore
@@ -633,6 +687,29 @@ export default function DriverPage() {
         </div>
       )}
 
+      {/* Urdu Compliance Warning Popup Banner */}
+      {urduWarning && (
+        <div className="p-4 rounded-2xl bg-rose-600/95 border border-rose-400/50 text-white text-xs sm:text-sm space-y-2 shadow-2xl animate-bounce">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <span className="text-xl">⚠️</span>
+              <div>
+                <p className="font-bold text-sm">اہم نوٹس (Driver Notice):</p>
+                <p className="mt-1 text-xs leading-relaxed font-semibold">{urduWarning}</p>
+                <p className="text-[11px] text-rose-200 mt-1">Please keep this browser tab open on your dashboard to ensure continuous GPS telemetry.</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setUrduWarning(null)}
+              className="px-2 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-bold transition-colors"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/80 p-5 rounded-2xl border border-slate-800 backdrop-blur-md">
         <div className="flex items-center gap-3">
@@ -653,8 +730,15 @@ export default function DriverPage() {
           </div>
         </div>
 
-        {/* Battery & WakeLock Status */}
+        {/* Battery, Fullscreen & WakeLock Status */}
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-medium transition-colors"
+          >
+            {isFullscreen ? 'Exit Fullscreen' : '🖥️ Fullscreen Focus'}
+          </button>
           {wakeLockActive && (
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-medium" title="Screen will remain awake while tracking">
               <Sun className="w-3.5 h-3.5" />

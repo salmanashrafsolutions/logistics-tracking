@@ -1,0 +1,20 @@
+{
+  "appId": "com.logisticx.tracking",
+  "appName": "LogisticX Telematics",
+  "webDir": "out",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "plugins": {
+    "BackgroundGeolocation": {
+      "locationAuthorization": "Always",
+      "backgroundMode": true,
+      "stopOnTerminate": false,
+      "startOnBoot": true
+    },
+    "Insomnia": {
+      "enabled": true
+    }
+  }
+}

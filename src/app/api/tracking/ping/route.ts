@@ -13,6 +13,37 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
+    // Check if batch pings payload
+    if (body.pings && Array.isArray(body.pings) && body.pings.length > 0) {
+      const vehicleId = body.vehicle_id || body.vehicleId;
+      let lastResult: any = null;
+      let count = 0;
+
+      for (const p of body.pings) {
+        const payload: PingPayload = {
+          vehicle_id: p.vehicle_id || p.vehicleId || vehicleId,
+          lat: parseFloat(p.lat || p.latitude),
+          lng: parseFloat(p.lng || p.longitude),
+          accuracy_m: p.accuracy_m !== undefined ? parseFloat(p.accuracy_m) : (p.accuracy ? parseFloat(p.accuracy) : undefined),
+          speed: p.speed !== undefined ? parseFloat(p.speed) : undefined,
+          heading: p.heading !== undefined ? parseFloat(p.heading) : undefined,
+          battery_level: p.battery_level !== undefined ? parseFloat(p.battery_level) : undefined,
+          timestamp: p.timestamp || p.recorded_at || new Date().toISOString()
+        };
+
+        if (payload.vehicle_id && !isNaN(payload.lat) && !isNaN(payload.lng)) {
+          lastResult = await processLocationPing(payload);
+          count++;
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        processed: count,
+        last_result: lastResult
+      }, { status: 200 });
+    }
+
     const payload: PingPayload = {
       vehicle_id: body.vehicle_id || body.vehicleId,
       lat: parseFloat(body.lat || body.latitude),
@@ -21,7 +52,7 @@ export async function POST(request: NextRequest) {
       speed: body.speed !== undefined ? parseFloat(body.speed) : undefined,
       heading: body.heading !== undefined ? parseFloat(body.heading) : undefined,
       battery_level: body.battery_level !== undefined ? parseFloat(body.battery_level) : undefined,
-      timestamp: body.timestamp || new Date().toISOString()
+      timestamp: body.timestamp || body.recorded_at || new Date().toISOString()
     };
 
     if (!payload.vehicle_id || isNaN(payload.lat) || isNaN(payload.lng)) {
