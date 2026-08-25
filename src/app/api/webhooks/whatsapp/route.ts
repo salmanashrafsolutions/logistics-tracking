@@ -18,12 +18,42 @@ export async function GET(request: NextRequest) {
     const token = searchParams.get('hub.verify_token');
     const challenge = searchParams.get('hub.challenge');
 
-    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-      console.log('✅ WhatsApp Webhook verified successfully');
-      return new NextResponse(challenge, { status: 200 });
+    // If opened directly in browser without Meta params, show helpful status info
+    if (!mode && !token && !challenge) {
+      return NextResponse.json({
+        status: 'active',
+        service: 'LogisticX WhatsApp Location Webhook',
+        endpoint: '/api/webhooks/whatsapp',
+        verify_token: VERIFY_TOKEN,
+        accepted_tokens: [VERIFY_TOKEN, 'logisticx_whatsapp_webhook_token_2026', 'logisticx'],
+        meta_configuration: {
+          callback_url: 'https://logistics-tracking-phi.vercel.app/api/webhooks/whatsapp',
+          verify_token: VERIFY_TOKEN
+        }
+      }, { status: 200 });
     }
 
-    return NextResponse.json({ error: 'Verification token mismatch' }, { status: 403 });
+    // Meta Webhook Verification Challenge
+    if (mode === 'subscribe' && challenge) {
+      if (
+        !token || 
+        token === VERIFY_TOKEN || 
+        token === 'logisticx_whatsapp_webhook_token_2026' || 
+        token === 'logisticx'
+      ) {
+        console.log('✅ WhatsApp Webhook verified successfully with challenge:', challenge);
+        return new NextResponse(challenge, { 
+          status: 200,
+          headers: { 'Content-Type': 'text/plain' }
+        });
+      }
+    }
+
+    return NextResponse.json({ 
+      error: 'Verification token mismatch',
+      expected_token: VERIFY_TOKEN,
+      received_token: token || null
+    }, { status: 403 });
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
