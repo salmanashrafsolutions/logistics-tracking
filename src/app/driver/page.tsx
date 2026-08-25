@@ -360,30 +360,27 @@ export default function DriverPage() {
     );
   };
 
-  // Start background audio keep-alive (keeps iOS/Android JavaScript thread active when screen is locked)
+  // HUD Dimmer Mode (AMOLED Screen Blackout to track without battery drain)
+  const [isHudMode, setIsHudMode] = useState<boolean>(false);
+  const silentAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Start background audio keep-alive (HTML5 Audio Loop + MediaSession)
   const startBackgroundAudio = () => {
     try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
+      if (!silentAudioRef.current) {
+        const audio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+        audio.loop = true;
+        audio.volume = 0.05;
+        silentAudioRef.current = audio;
+      }
+      silentAudioRef.current.play()
+        .then(() => {
+          setBackgroundAudioActive(true);
+        })
+        .catch((e) => {
+          console.warn('Silent audio playback prevented:', e);
+        });
 
-      const ctx = new AudioCtx();
-      // Generate ultra-low volume inaudible tone to maintain active audio pipeline
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(440, ctx.currentTime);
-      gain.gain.setValueAtTime(0.0001, ctx.currentTime); // Inaudible (0.01% gain)
-      
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-
-      audioContextRef.current = ctx;
-      audioOscillatorRef.current = osc;
-      setBackgroundAudioActive(true);
-
-      // Register Media Session so mobile OS kernel marks this tab as an active background service
       if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
           title: 'LogisticX Driver GPS Active',
@@ -399,6 +396,10 @@ export default function DriverPage() {
 
   const stopBackgroundAudio = () => {
     try {
+      if (silentAudioRef.current) {
+        silentAudioRef.current.pause();
+        silentAudioRef.current = null;
+      }
       if (audioOscillatorRef.current) {
         audioOscillatorRef.current.stop();
         audioOscillatorRef.current.disconnect();
@@ -688,16 +689,62 @@ export default function DriverPage() {
             </button>
           </>
         ) : (
-          <button
-            type="button"
-            onClick={stopTracking}
-            className="w-full sm:w-80 mx-auto py-4 px-6 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-lg shadow-xl shadow-rose-600/30 hover:shadow-rose-600/40 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-3"
-          >
-            <Square className="w-6 h-6 fill-current" />
-            <span>STOP TRACKING</span>
-          </button>
+          <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={stopTracking}
+              className="w-full sm:w-72 py-4 px-6 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-lg shadow-xl shadow-rose-600/30 hover:shadow-rose-600/40 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-3"
+            >
+              <Square className="w-6 h-6 fill-current" />
+              <span>STOP TRACKING</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsHudMode(true)}
+              className="w-full sm:w-auto py-4 px-5 rounded-2xl bg-slate-900 border border-slate-700 hover:border-slate-500 text-slate-200 text-sm font-semibold hover:text-white transition-all flex items-center justify-center gap-2 shadow-lg"
+            >
+              <Sun className="w-4 h-4 text-amber-400" />
+              <span>AMOLED Blackout HUD</span>
+            </button>
+          </div>
         )}
       </div>
+
+      {/* AMOLED Blackout HUD Overlay for zero battery burn while keeping screen on */}
+      {isHudMode && (
+        <div 
+          onClick={() => setIsHudMode(false)}
+          className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-between p-8 text-center cursor-pointer select-none"
+        >
+          <div className="pt-8 space-y-1 text-slate-600">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950 border border-slate-900 text-xs text-slate-400">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>GPS Tracking Live (WakeLock Active)</span>
+            </div>
+            <p className="text-[11px] text-slate-700 pt-1">Screen is black to conserve battery • Mount phone and drive</p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="text-6xl font-mono font-black text-slate-200">
+              {currentPosition?.coords.speed !== null && currentPosition?.coords.speed !== undefined 
+                ? `${Math.round((currentPosition.coords.speed || 0) * 3.6)}` 
+                : '0'}
+              <span className="text-xl font-normal text-slate-600 ml-2">km/h</span>
+            </div>
+            <div className="text-lg font-bold text-emerald-400">
+              {currentTehsil || 'Resolving Tehsil...'}
+            </div>
+            <div className="text-xs text-slate-600 font-mono">
+              Pings Streamed: {stats.successful} / {stats.sent} • {currentDistrict || ''}
+            </div>
+          </div>
+
+          <div className="pb-8 text-xs text-slate-600 animate-pulse">
+            👆 Tap anywhere on screen to exit Blackout HUD
+          </div>
+        </div>
+      )}
 
       {/* GPS Error Alert */}
       {gpsError && (
